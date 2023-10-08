@@ -17,7 +17,7 @@ class ProductController extends Controller
      */
     public function index()
     {
-        $products = Product::paginate(10);  
+        $products = Product::latest()->paginate(10);
         return view('product.index', ['products' => $products]);
     }
 
@@ -63,7 +63,6 @@ class ProductController extends Controller
         return redirect()->route('products.index')->with('success', 'Product created successfully.');
 
     }catch (\Exception $e) {  
-        dd($e); 
         return redirect()->back()->with('error', __('Failed to create Prod'));
     }
     }
@@ -73,25 +72,70 @@ class ProductController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Product $product)
     {
-        //
+        $sizes = Size::all();
+    //     dd($product->sizes);
+        $colors = Color::all();
+        return view('product.edit', compact('sizes', 'colors','product'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(ProductCreateRequest $request, Product $product)
     {
-        //
+        $validatedData = $request->validated();
+
+        $product->title = $validatedData['title'];
+        $product->description = $validatedData['description'];
+        $product->exists = true;
+        $product->save();
+
+        $selectedSizes = $request->input('sizes') ?? [];
+        $product->sizes()->sync($selectedSizes);
+
+         $selectedColors = $request->input('colors') ?? [];
+        $product->colors()->sync($selectedColors);
+        
+        if(!empty( $request->input('main_image_file_name') ) ){
+
+            // File upload if changed 
+            $mainImageFileName = $request->input('main_image_file_name');
+                
+            $last_dot_position = strrpos($mainImageFileName, '.');
+            $exxt = substr($mainImageFileName, $last_dot_position + 1);
+            $newFileName = time() . '.' . $exxt;
+
+            $file_moved= Storage::disk('public')->move('uploads/' . $mainImageFileName, 'uploads/products/' . $newFileName);
+            
+            if($file_moved){
+                $product->main_image = $newFileName;  
+                $product->save();
+            }
+    }
+
+        // Eof File uload 
+        return redirect()->route('products.index')->with('success',  $product->title.' - Product updated successfully.');
+
+        $product->update([
+            'title' => $request->input('title'),
+            'description' => $request->input('description'),
+        ]);
     }
 
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Product $product)
     {
-        //
+        if (!$product) {
+            return redirect()->route('products.index')->with('error', 'Product not found.');
+        }
+
+        $product->delete();
+
+        return redirect()->route('products.index')->with('success', 'Product deleted successfully.');
     }
       /**
      * Upload the file via ajax
@@ -109,4 +153,12 @@ class ProductController extends Controller
     // Return the saved file name
     return response()->json(['file_name' => $fileName]);
     } 
+
+    //   /**
+    //  *Common unction to move image to folder
+    //  */
+    // public function moveFile()
+    // {
+    //  //
+    // } 
 }

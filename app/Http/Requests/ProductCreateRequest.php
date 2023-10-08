@@ -28,7 +28,8 @@ class ProductCreateRequest extends FormRequest
         return [
             'title' => 'required|max:255',
             'description' => 'required',
-            'main_image_file_name' => 'required',  
+            // 'main_image_file_name' => 'required',  
+            'main_image_file_name' => 'sometimes|required_without:main_image', 
             'sizes' => 'nullable|array',
             'colors' => 'nullable|array',
         ];
